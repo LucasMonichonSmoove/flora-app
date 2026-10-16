@@ -1,101 +1,164 @@
-import type { PlantCareInfo } from "@/types/plant";
+import type { CareGuide, PlantCareInfo } from "@/types/plant";
 
-const FAMILY_CARE: Record<string, PlantCareInfo> = {
-  araceae: {
-    watering:
-      "Arrosez lorsque les 2 à 3 premiers centimètres du terreau sont secs. Videz la soucoupe après l’arrosage.",
-    placement: "both",
-    estimatedPrice: { min: 8, max: 40 },
+const CARE_GUIDES: Record<string, CareGuide> = {
+  monstera: {
+    sunlight: "Lumière vive indirecte; évitez le soleil direct brûlant.",
+    watering: "Arrosez quand les 2 à 3 cm supérieurs du terreau sont secs.",
+    temperature: "18 à 30 °C; protégez-la des courants d’air froids.",
+    humidity: "Humidité moyenne à élevée, idéalement au-dessus de 50 %.",
+    toxicity: "Toxique pour les chats et les chiens si elle est ingérée.",
+    difficulty: "Facile",
   },
-  cactaceae: {
+  orchid: {
+    sunlight: "Lumière vive indirecte, près d’une fenêtre orientée est.",
     watering:
-      "Laissez le terreau sécher complètement entre deux arrosages. Réduisez fortement en hiver.",
-    placement: "both",
-    estimatedPrice: { min: 4, max: 30 },
+      "Arrosez quand les racines deviennent grisâtres et laissez égoutter.",
+    temperature: "18 à 27 °C le jour, un peu plus frais la nuit.",
+    humidity: "Humidité élevée, autour de 50 à 70 %, avec bonne ventilation.",
+    toxicity: "Généralement considérée comme non toxique pour les animaux.",
+    difficulty: "Intermédiaire",
   },
-  crassulaceae: {
+  lavender: {
+    sunlight: "Plein soleil, au moins 6 heures par jour.",
     watering:
-      "Arrosez modérément uniquement lorsque le terreau est sec; évitez de laisser de l’eau dans la rosette.",
-    placement: "both",
-    estimatedPrice: { min: 5, max: 30 },
+      "Arrosez peu une fois installée; laissez sécher le sol entre les arrosages.",
+    temperature: "Rustique selon la variété; apprécie les étés chauds et secs.",
+    humidity: "Air sec et emplacement bien ventilé.",
+    toxicity: "Peut être toxique pour les chats et les chiens si ingérée.",
+    difficulty: "Facile",
   },
-  orchidaceae: {
+  rose: {
+    sunlight: "Plein soleil, idéalement 6 heures ou plus par jour.",
     watering:
-      "Arrosez lorsque le substrat est presque sec, puis laissez-le bien s’égoutter. Évitez l’eau stagnante au cœur des feuilles.",
-    placement: "indoor",
-    estimatedPrice: { min: 10, max: 60 },
+      "Arrosez au pied lorsque la surface du sol sèche, plus souvent en été.",
+    temperature: "La plupart des rosiers supportent les saisons tempérées.",
+    humidity: "Humidité extérieure habituelle; privilégiez une bonne circulation d’air.",
+    toxicity: "Non toxique; attention aux épines.",
+    difficulty: "Intermédiaire",
   },
-  arecaceae: {
+  aloe: {
+    sunlight: "Lumière vive; acclimatez-la avant une exposition directe.",
     watering:
-      "Gardez le terreau légèrement humide sans le détremper. Les besoins augmentent généralement pendant la période de croissance.",
-    placement: "both",
-    estimatedPrice: { min: 12, max: 80 },
+      "Laissez sécher complètement le substrat avant d’arroser à nouveau.",
+    temperature: "18 à 27 °C; évitez les températures proches du gel.",
+    humidity: "Air sec à normal; un substrat très drainant est essentiel.",
+    toxicity:
+      "Le gel interne est différent du latex; la plante peut être toxique pour les animaux.",
+    difficulty: "Facile",
   },
-  asparagaceae: {
+  ficus: {
+    sunlight: "Lumière vive indirecte; évitez les déplacements répétés.",
     watering:
-      "Laissez sécher la surface du terreau entre les arrosages et réduisez la fréquence pendant les mois froids.",
-    placement: "both",
-    estimatedPrice: { min: 6, max: 45 },
+      "Arrosez lorsque les premiers centimètres du terreau sont secs.",
+    temperature: "18 à 27 °C, sans courant d’air froid.",
+    humidity: "Humidité ambiante; apprécie une atmosphère modérément humide.",
+    toxicity: "La sève peut être irritante et la plante toxique pour les animaux.",
+    difficulty: "Intermédiaire",
   },
-  moraceae: {
+  sansevieria: {
+    sunlight: "De la lumière indirecte à la mi-ombre.",
     watering:
-      "Arrosez quand la surface du terreau commence à sécher. Évitez les changements brusques d’humidité.",
-    placement: "both",
-    estimatedPrice: { min: 10, max: 70 },
+      "Arrosez rarement et laissez sécher entièrement le substrat.",
+    temperature: "15 à 29 °C; gardez-la à l’abri du gel.",
+    humidity: "Air sec à normal.",
+    toxicity: "Toxique pour les chats et les chiens si elle est ingérée.",
+    difficulty: "Très facile",
   },
-  piperaceae: {
+  pothos: {
+    sunlight: "Lumière indirecte moyenne à vive; tolère la mi-ombre.",
     watering:
-      "Maintenez le substrat légèrement humide et laissez sécher la surface avant d’arroser à nouveau.",
-    placement: "indoor",
-    estimatedPrice: { min: 8, max: 40 },
+      "Laissez sécher les premiers centimètres de terreau entre les arrosages.",
+    temperature: "18 à 29 °C; évitez le froid.",
+    humidity: "Humidité ambiante à élevée.",
+    toxicity: "Toxique pour les chats et les chiens si elle est ingérée.",
+    difficulty: "Très facile",
   },
-  marantaceae: {
+  philodendron: {
+    sunlight: "Lumière vive indirecte; protégez les feuilles du soleil direct.",
     watering:
-      "Gardez le terreau uniformément légèrement humide, sans le détremper. Évitez de le laisser sécher complètement.",
-    placement: "indoor",
-    estimatedPrice: { min: 12, max: 50 },
-  },
-  polypodiaceae: {
-    watering:
-      "Maintenez le substrat légèrement humide et augmentez l’humidité ambiante; ne laissez pas les racines baigner dans l’eau.",
-    placement: "both",
-    estimatedPrice: { min: 8, max: 40 },
-  },
-  lamiaceae: {
-    watering:
-      "Arrosez lorsque la surface du sol est sèche. La plupart des espèces préfèrent un substrat bien drainé.",
-    placement: "both",
-    estimatedPrice: { min: 4, max: 25 },
-  },
-  rosaceae: {
-    watering:
-      "Arrosez au pied lorsque les premiers centimètres du sol sont secs; adaptez la fréquence à la saison et au climat.",
-    placement: "outdoor",
-    estimatedPrice: { min: 8, max: 60 },
-  },
-  bromeliaceae: {
-    watering:
-      "Arrosez modérément le substrat et renouvelez régulièrement l’eau du réservoir central si l’espèce en possède un.",
-    placement: "indoor",
-    estimatedPrice: { min: 10, max: 50 },
-  },
-  amaryllidaceae: {
-    watering:
-      "Arrosez pendant la croissance lorsque la surface du terreau sèche, puis réduisez ou stoppez l’arrosage en dormance.",
-    placement: "both",
-    estimatedPrice: { min: 6, max: 40 },
+      "Arrosez lorsque les premiers centimètres du terreau sont secs.",
+    temperature: "18 à 29 °C, à l’abri des courants d’air froids.",
+    humidity: "Humidité moyenne à élevée.",
+    toxicity: "Toxique pour les chats et les chiens si elle est ingérée.",
+    difficulty: "Facile",
   },
 };
 
-const GENERIC_CARE: PlantCareInfo = {
+const GENERIC_GUIDE: CareGuide = {
+  sunlight: "À adapter à l’espèce; évitez de l’exposer brutalement au soleil direct.",
   watering:
-    "Les besoins varient selon l’espèce et le substrat. Vérifiez l’humidité du terreau avant d’arroser et évitez l’eau stagnante.",
+    "Vérifiez l’humidité du terreau avant d’arroser et évitez l’eau stagnante.",
+  temperature: "Consultez les besoins spécifiques de l’espèce et protégez-la du gel.",
+  humidity: "À adapter à l’espèce; une bonne circulation d’air reste importante.",
+  toxicity: "Information non vérifiée; gardez la plante hors de portée des animaux.",
+  difficulty: "À déterminer selon l’espèce",
+};
+
+const FAMILY_CARE: Record<string, PlantCareInfo> = {
+  araceae: {
+    watering: "Arrosez lorsque la surface du terreau commence à sécher.",
+    placement: "indoor",
+    estimatedPrice: { min: 8, max: 50 },
+  },
+  orchidaceae: {
+    watering: "Arrosez quand les racines deviennent grisâtres, puis égouttez.",
+    placement: "indoor",
+    estimatedPrice: { min: 10, max: 60 },
+  },
+  lamiaceae: {
+    watering: "Arrosez modérément; la plupart préfèrent un sol bien drainé.",
+    placement: "outdoor",
+    estimatedPrice: { min: 4, max: 30 },
+  },
+  rosaceae: {
+    watering: "Arrosez au pied quand la surface du sol est sèche.",
+    placement: "outdoor",
+    estimatedPrice: { min: 8, max: 60 },
+  },
+  asphodelaceae: {
+    watering: "Laissez sécher complètement le substrat entre les arrosages.",
+    placement: "indoor",
+    estimatedPrice: { min: 5, max: 35 },
+  },
+};
+
+const GENERIC_FAMILY_CARE: PlantCareInfo = {
+  watering: "Vérifiez l’humidité du terreau avant d’arroser.",
   placement: "species-dependent",
   estimatedPrice: null,
 };
 
+function normalize(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase();
+}
+
+export function getCareGuide(
+  scientificName: string,
+  commonName: string,
+): CareGuide {
+  const names = normalize(`${scientificName} ${commonName}`);
+  const speciesMatchers: Array<[RegExp, CareGuide]> = [
+    [/monstera/, CARE_GUIDES.monstera],
+    [/orchid|orchidee|phalaenopsis/, CARE_GUIDES.orchid],
+    [/lavand|lavender/, CARE_GUIDES.lavender],
+    [/rosa\b|rose\b/, CARE_GUIDES.rose],
+    [/aloe|aloes/, CARE_GUIDES.aloe],
+    [/ficus|figuier/, CARE_GUIDES.ficus],
+    [/sansevieria|snake.?plant/, CARE_GUIDES.sansevieria],
+    [/pothos|epipremnum/, CARE_GUIDES.pothos],
+    [/philodendron/, CARE_GUIDES.philodendron],
+  ];
+  const match = speciesMatchers.find(([pattern]) => pattern.test(names));
+  if (match) return match[1];
+
+  return GENERIC_GUIDE;
+}
+
 export function getPlantCareInfo(family: string): PlantCareInfo {
-  return FAMILY_CARE[family.trim().toLocaleLowerCase()] ?? GENERIC_CARE;
+  return FAMILY_CARE[normalize(family)] ?? GENERIC_FAMILY_CARE;
 }
 
 export function getPlacementLabel(placement: PlantCareInfo["placement"]) {
@@ -109,4 +172,15 @@ export function getPlacementLabel(placement: PlantCareInfo["placement"]) {
     case "species-dependent":
       return "À vérifier selon l’espèce";
   }
+}
+
+export function getDaysSinceWatering(
+  lastWatered: string | null,
+  now = new Date(),
+): number | null {
+  if (!lastWatered) return null;
+  const timestamp = new Date(lastWatered).getTime();
+  if (!Number.isFinite(timestamp)) return null;
+  const elapsed = now.getTime() - timestamp;
+  return elapsed < 0 ? 0 : Math.floor(elapsed / 86_400_000);
 }

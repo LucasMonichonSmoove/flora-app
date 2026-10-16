@@ -12,12 +12,14 @@ import type {
   ApiErrorResponse,
   PlantIdentificationResponse,
 } from "@/types/plant";
+import { addIdentificationToHistory } from "@/lib/favorites";
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<PlantIdentificationResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historyNotice, setHistoryNotice] = useState<string | null>(null);
 
   function handleFileSelect(nextFile: File) {
     setFile(nextFile);
@@ -33,6 +35,7 @@ export default function Home() {
 
     setIsLoading(true);
     setError(null);
+    setHistoryNotice(null);
     setResult(null);
 
     const formData = new FormData();
@@ -45,6 +48,14 @@ export default function Home() {
         { timeout: 55_000 },
       );
       setResult(response.data);
+      try {
+        await addIdentificationToHistory(response.data);
+      } catch (historyError: unknown) {
+        console.error("Could not save identification history:", historyError);
+        setHistoryNotice(
+          "Identification réussie, mais son ajout à l’historique a échoué.",
+        );
+      }
     } catch (caughtError: unknown) {
       if (axios.isAxiosError<ApiErrorResponse>(caughtError)) {
         setError(
@@ -128,6 +139,14 @@ export default function Home() {
             <div className="mt-6">
               <ResultCard result={result} />
             </div>
+          )}
+          {historyNotice && (
+            <p
+              role="status"
+              className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+            >
+              {historyNotice}
+            </p>
           )}
         </section>
 

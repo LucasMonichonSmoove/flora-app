@@ -1,50 +1,138 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import {
   BadgeCheck,
   BookOpenText,
-  Droplets,
-  ExternalLink,
   Heart,
-  Flower2,
-  House,
-  Leaf,
-  Tag,
-  Sun,
   Sprout,
 } from "lucide-react";
-import { getPlantCareInfo, getPlacementLabel } from "@/lib/plant-care";
+import { useRouter } from "next/navigation";
+import CollectionPlantForm from "@/components/CollectionPlantForm";
+import PlantCareCard from "@/components/PlantCareCard";
+import {
+  addFavorite,
+  getCurrentUser,
+  getFavoriteId,
+  removeFavoriteByScientificName,
+} from "@/lib/favorites";
+import { getCareGuide } from "@/lib/plant-care";
 import { truncateText } from "@/lib/utils";
-import { useFavorites } from "@/hooks/useFavorites";
-import type { PlantIdentificationResponse, SavedPlant } from "@/types/plant";
+import type {
+  PlantCollectionInput,
+  PlantIdentificationResponse,
+} from "@/types/plant";
 
 interface ResultCardProps {
   result: PlantIdentificationResponse;
 }
 
 export default function ResultCard({ result }: ResultCardProps) {
-  const { favorites, isReady, error, toggleFavorite } = useFavorites();
+  const router = useRouter();
   const bestResult = result.plantnet.results[0];
-  if (!bestResult) return null;
+  const species = bestResult?.species;
+  const scientificName = species?.scientificName ?? "";
+  const scientificNameWithoutAuthor =
+    species?.scientificNameWithoutAuthor ?? scientificName;
+  const commonName = species?.commonNames[0] ?? scientificName;
+  const family = species?.family.scientificName ?? "";
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [favoriteId, setFavoriteId] = useState<string | null>(null);
+  const [isUpdatingFavorite, setIsUpdatingFavorite] = useState(false);
+  const [isCollectionFormOpen, setIsCollectionFormOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const { species } = bestResult;
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadFavoriteState() {
+      try {
+        const user = await getCurrentUser();
+        if (!isActive) return;
+        setIsAuthenticated(Boolean(user));
+        if (user) {
+          const id = await getFavoriteId(scientificNameWithoutAuthor);
+          if (isActive) setFavoriteId(id);
+        } else {
+          setFavoriteId(null);
+        }
+      } catch (error: unknown) {
+        console.error("Could not load plant favorite state:", error);
+        if (isActive) {
+          setActionError(
+            error instanceof Error
+              ? error.message
+              : "Impossible de vérifier vos favoris.",
+          );
+        }
+      } finally {
+        if (isActive) setIsCheckingAuth(false);
+      }
+    }
+
+    void loadFavoriteState();
+    return () => {
+      isActive = false;
+    };
+  }, [scientificNameWithoutAuthor]);
+
+  if (!bestResult || !species) return null;
+
   const confidencePercent = Math.round(bestResult.score * 100);
-  const care = getPlantCareInfo(species.family.scientificName);
-  const favoriteId = species.scientificNameWithoutAuthor
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/\s+/g, "-");
-  const isFavorite = favorites.some((favorite) => favorite.id === favoriteId);
-  const savedPlant: SavedPlant = {
-    id: favoriteId,
-    commonName: species.commonNames[0] ?? species.scientificName,
-    scientificName: species.scientificName,
-    family: species.family.scientificName,
-    addedAt: new Date().toISOString(),
-    wikipediaUrl: result.details?.wikipediaUrl ?? null,
-    summary: result.details?.summary ?? null,
-    image: result.details?.image ?? null,
-    care,
+  const careGuide = getCareGuide(scientificName, commonName);
+  const collectionInput: PlantCollectionInput = {
+    scientific_name: scientificName,
+    common_name: commonName,
+    image_url: result.details?.image ?? null,
+    nickname: null,
+    purchase_date: null,
+    location: null,
+    notes: null,
   };
+
+  async function handleToggleFavorite() {
+    if (!isAuthenticated) {
+      router.push(`/login?next=${encodeURIComponent("/")}`);
+      return;
+    }
+
+    setIsUpdatingFavorite(true);
+    setActionError(null);
+    try {
+      if (favoriteId) {
+        await removeFavoriteByScientificName(scientificNameWithoutAuthor);
+        setFavoriteId(null);
+      } else {
+        const favorite = await addFavorite({
+          scientific_name: scientificNameWithoutAuthor,
+          common_name: commonName,
+          family_name: family,
+          image_url: result.details?.image ?? null,
+        });
+        setFavoriteId(favorite.id);
+      }
+    } catch (error: unknown) {
+      console.error("Could not update plant favorite:", error);
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "Impossible de mettre à jour vos favoris.",
+      );
+    } finally {
+      setIsUpdatingFavorite(false);
+    }
+  }
+
+  function openCollectionForm() {
+    if (!isAuthenticated) {
+      router.push(`/login?next=${encodeURIComponent("/")}`);
+      return;
+    }
+    setActionError(null);
+    setIsCollectionFormOpen(true);
+  }
 
   return (
     <article
@@ -58,10 +146,10 @@ export default function ResultCard({ result }: ResultCardProps) {
             Identification trouvée
           </div>
           <h2 className="text-2xl font-semibold tracking-tight text-stone-900">
-            {species.commonNames[0] ?? species.scientificName}
+            {commonName}
           </h2>
           <p className="mt-1 text-sm italic text-stone-500">
-            {species.scientificName}
+            {scientificName}
           </p>
         </div>
         <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800">
@@ -72,18 +160,18 @@ export default function ResultCard({ result }: ResultCardProps) {
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <div className="flex items-center gap-3 rounded-2xl bg-white/80 p-3.5">
           <span className="flex size-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
-            <Flower2 size={18} aria-hidden="true" />
+            <Sprout size={18} aria-hidden="true" />
           </span>
           <div className="min-w-0">
             <p className="text-xs text-stone-500">Famille botanique</p>
             <p className="truncate text-sm font-medium text-stone-800">
-              {species.family.scientificName}
+              {family}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3 rounded-2xl bg-white/80 p-3.5">
           <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-            <Leaf size={18} aria-hidden="true" />
+            <BadgeCheck size={18} aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
@@ -109,101 +197,52 @@ export default function ResultCard({ result }: ResultCardProps) {
         </div>
       </div>
 
-      <section className="mt-5 rounded-2xl border border-emerald-100 bg-white/90 p-4 sm:p-5">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-          <Leaf size={17} className="text-emerald-700" aria-hidden="true" />
-          Conseils d’entretien
-        </h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="flex items-start gap-3">
-            <Droplets
-              size={18}
-              className="mt-0.5 shrink-0 text-sky-600"
-              aria-hidden="true"
-            />
-            <div>
-              <p className="text-xs font-medium text-stone-500">Arrosage</p>
-              <p className="mt-1 text-sm leading-5 text-stone-700">
-                {care.watering}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            {care.placement === "outdoor" ? (
-              <Sun
-                size={18}
-                className="mt-0.5 shrink-0 text-amber-600"
-                aria-hidden="true"
-              />
-            ) : (
-              <House
-                size={18}
-                className="mt-0.5 shrink-0 text-emerald-700"
-                aria-hidden="true"
-              />
-            )}
-            <div>
-              <p className="text-xs font-medium text-stone-500">
-                Intérieur / extérieur
-              </p>
-              <p className="mt-1 text-sm leading-5 text-stone-700">
-                {getPlacementLabel(care.placement)}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 sm:col-span-2">
-            <Tag
-              size={18}
-              className="mt-0.5 shrink-0 text-emerald-700"
-              aria-hidden="true"
-            />
-            <div>
-              <p className="text-xs font-medium text-stone-500">
-                Prix indicatif
-              </p>
-              <p className="mt-1 text-sm leading-5 text-stone-700">
-                {care.estimatedPrice
-                  ? `${care.estimatedPrice.min} à ${care.estimatedPrice.max} € (estimation)`
-                  : "À vérifier auprès d’un vendeur local"}
-              </p>
-            </div>
-          </div>
-        </div>
-        <p className="mt-4 border-t border-stone-100 pt-3 text-xs leading-5 text-stone-500">
-          Conseils généraux basés sur la famille botanique et prix estimatifs :
-          les besoins et tarifs réels varient selon l’espèce, la taille et la
-          région.
-        </p>
-      </section>
-
-      <div className="mt-5">
+      <div className="mt-5 grid gap-2 sm:grid-cols-2">
         <button
           type="button"
-          onClick={() => toggleFavorite(savedPlant)}
-          disabled={!isReady}
-          aria-pressed={isFavorite}
-          className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-60 ${
-            isFavorite
+          onClick={() => void handleToggleFavorite()}
+          disabled={isCheckingAuth || isUpdatingFavorite}
+          aria-pressed={Boolean(favoriteId)}
+          className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-60 ${
+            favoriteId
               ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
-              : "border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-50"
+              : "border-rose-200 bg-white text-rose-700 hover:bg-rose-50"
           }`}
         >
           <Heart
             size={17}
-            fill={isFavorite ? "currentColor" : "none"}
+            fill={favoriteId ? "currentColor" : "none"}
             aria-hidden="true"
           />
-          {isFavorite ? "Retirer des favoris" : "Ajouter à ma wishlist"}
+          {isUpdatingFavorite
+            ? "Mise à jour…"
+            : favoriteId
+              ? "Retirer des favoris"
+              : "Ajouter aux favoris"}
         </button>
-        {error && (
-          <p role="alert" className="mt-2 text-sm text-rose-700">
-            {error}
-          </p>
-        )}
-        <p className="mt-2 text-center text-xs text-stone-500">
-          Favoris enregistrés sur cet appareil jusqu’à la connexion de Supabase.
-        </p>
+        <button
+          type="button"
+          onClick={openCollectionForm}
+          disabled={isCheckingAuth}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60"
+        >
+          <Sprout size={17} aria-hidden="true" />
+          Je possède cette plante
+        </button>
       </div>
+      {!isAuthenticated && !isCheckingAuth && (
+        <p className="mt-2 text-center text-xs text-stone-500">
+          Connectez-vous pour enregistrer un favori ou une plante.
+        </p>
+      )}
+      {actionError && (
+        <p
+          role="alert"
+          className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-800"
+        >
+          {actionError}
+        </p>
+      )}
 
       {result.details && (
         <section className="mt-5 overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm">
@@ -235,10 +274,19 @@ export default function ResultCard({ result }: ResultCardProps) {
               className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-800 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-950"
             >
               🌍 Source · Wikipédia
-              <ExternalLink size={14} aria-hidden="true" />
             </a>
           </div>
         </section>
+      )}
+
+      <PlantCareCard guide={careGuide} family={family} />
+
+      {isCollectionFormOpen && (
+        <CollectionPlantForm
+          plant={collectionInput}
+          onClose={() => setIsCollectionFormOpen(false)}
+          onSaved={() => setIsCollectionFormOpen(false)}
+        />
       )}
     </article>
   );

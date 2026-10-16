@@ -35,15 +35,15 @@ export default function UploadZone({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!file) {
-      setPreviewUrl(null);
-      return;
-    }
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [file]);
+  function handleClear() {
+    setPreviewUrl(null);
+    onClear();
+  }
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     accept: ACCEPTED_TYPES,
@@ -53,7 +53,10 @@ export default function UploadZone({
     noClick: true,
     onDropAccepted: (acceptedFiles) => {
       const acceptedFile = acceptedFiles[0];
-      if (acceptedFile) onFileSelect(acceptedFile);
+      if (acceptedFile) {
+        setPreviewUrl(URL.createObjectURL(acceptedFile));
+        onFileSelect(acceptedFile);
+      }
     },
     onDropRejected: (rejections) => onError(getRejectionMessage(rejections)),
   });
@@ -87,7 +90,7 @@ export default function UploadZone({
             </button>
             <button
               type="button"
-              onClick={onClear}
+              onClick={handleClear}
               aria-label="Supprimer la photo"
               className="flex size-10 items-center justify-center rounded-full bg-white/20 backdrop-blur transition hover:bg-white/30"
             >

@@ -3,16 +3,80 @@
 import { useState, type FormEvent } from "react";
 import { ArrowLeft, Leaf, LockKeyhole, Mail, Sprout } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
+import { createClient } from "@/lib/supabase";
+
+type AuthMode = "sign-in" | "sign-up";
+
+function getSafeRedirectTarget() {
+  const target = new URL(window.location.href).searchParams.get("next");
+  return target?.startsWith("/") &&
+    !target.startsWith("//") &&
+    !target.includes("\\")
+    ? target
+    : "/";
+}
 
 export default function LoginPage() {
-  const [notice, setNotice] = useState<string | null>(null);
+  const router = useRouter();
+  const [mode, setMode] = useState<AuthMode>("sign-in");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setNotice(
-      "La connexion Supabase n’est pas encore configurée. Aucun identifiant n’a été envoyé ni enregistré.",
+    setError(null);
+    setMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      const supabase = createClient();
+      if (mode === "sign-in") {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (signInError) throw signInError;
+        router.replace(getSafeRedirectTarget());
+        router.refresh();
+        return;
+      }
+
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      });
+      if (signUpError) throw signUpError;
+      if (data.session) {
+        router.replace(getSafeRedirectTarget());
+        router.refresh();
+        return;
+      }
+      setMessage(
+        "Un e-mail de confirmation vous a été envoyé. Confirmez votre adresse avant de vous connecter.",
+      );
+    } catch (caughtError: unknown) {
+      console.error("Supabase authentication failed:", caughtError);
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "La connexion a échoué. Réessayez.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function toggleMode() {
+    setMode((currentMode) =>
+      currentMode === "sign-in" ? "sign-up" : "sign-in",
     );
+    setError(null);
+    setMessage(null);
   }
 
   return (
@@ -32,25 +96,12 @@ export default function LoginPage() {
             <Leaf size={24} aria-hidden="true" />
           </div>
           <h1 className="mt-5 text-3xl font-semibold tracking-tight text-stone-900">
-            Ravie de vous revoir
+            {mode === "sign-in" ? "Ravie de vous revoir" : "Créer un compte"}
           </h1>
           <p className="mt-2 text-sm leading-6 text-stone-600">
             Connectez-vous pour retrouver votre collection de plantes et votre
-            wishlist.
+            wishlist sur tous vos appareils.
           </p>
-
-          <div className="mt-6 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <LockKeyhole
-              size={18}
-              className="mt-0.5 shrink-0 text-amber-800"
-              aria-hidden="true"
-            />
-            <p className="text-sm leading-5 text-amber-900">
-              L’authentification Supabase sera activée lors de la configuration
-              du projet. Ce formulaire ne transmet ni ne conserve vos
-              identifiants.
-            </p>
-          </div>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">
@@ -64,6 +115,8 @@ export default function LoginPage() {
                   name="email"
                   autoComplete="email"
                   required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   placeholder="vous@exemple.fr"
                   className="min-w-0 flex-1 bg-transparent text-sm text-stone-900 outline-none placeholder:text-stone-400"
                 />
@@ -83,9 +136,14 @@ export default function LoginPage() {
                 <input
                   type="password"
                   name="password"
-                  autoComplete="current-password"
+                  autoComplete={
+                    mode === "sign-in" ? "current-password" : "new-password"
+                  }
+                  minLength={8}
                   required
-                  placeholder="Votre mot de passe"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="8 caractères minimum"
                   className="min-w-0 flex-1 bg-transparent text-sm text-stone-900 outline-none placeholder:text-stone-400"
                 />
               </span>
@@ -93,27 +151,44 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+              disabled={isSubmitting}
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-60"
             >
               <Sprout size={17} aria-hidden="true" />
-              Se connecter
+              {isSubmitting
+                ? "Veuillez patienter…"
+                : mode === "sign-in"
+                  ? "Se connecter"
+                  : "Créer mon compte"}
             </button>
           </form>
 
-          {notice && (
+          {error && (
+            <p
+              role="alert"
+              className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-5 text-rose-800"
+            >
+              {error}
+            </p>
+          )}
+          {message && (
             <p
               role="status"
-              className="mt-4 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm leading-5 text-stone-700"
+              className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-5 text-emerald-900"
             >
-              {notice}
+              {message}
             </p>
           )}
 
           <p className="mt-6 text-center text-sm text-stone-500">
-            Pas encore de compte ?{" "}
-            <span className="font-medium text-emerald-800">
-              L’inscription sera disponible avec Supabase.
-            </span>
+            {mode === "sign-in" ? "Pas encore de compte ?" : "Déjà un compte?"}{" "}
+            <button
+              type="button"
+              onClick={toggleMode}
+              className="font-semibold text-emerald-800 underline underline-offset-2 hover:text-emerald-950"
+            >
+              {mode === "sign-in" ? "Créer un compte" : "Se connecter"}
+            </button>
           </p>
         </section>
       </main>
