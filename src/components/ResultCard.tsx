@@ -8,6 +8,7 @@ import {
   Heart,
   Sprout,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CollectionPlantForm from "@/components/CollectionPlantForm";
 import PlantCareCard from "@/components/PlantCareCard";
@@ -85,12 +86,23 @@ export default function ResultCard({ result }: ResultCardProps) {
   const collectionInput: PlantCollectionInput = {
     scientific_name: scientificName,
     common_name: commonName,
+    family_name: family,
+    description: result.details?.summary ?? null,
     image_url: result.details?.image ?? null,
     nickname: null,
     purchase_date: null,
     location: null,
     notes: null,
+    is_manual: false,
+    source: "plantnet",
   };
+  const correctionHref = `/add-plant?${new URLSearchParams({
+    name: commonName,
+    scientific: scientificName,
+    family,
+    description: result.details?.summary ?? "",
+    image: result.details?.image ?? "",
+  }).toString()}`;
 
   async function handleToggleFavorite() {
     if (!isAuthenticated) {
@@ -195,6 +207,43 @@ export default function ResultCard({ result }: ResultCardProps) {
             </div>
           </div>
         </div>
+      </div>
+
+      {bestResult.score < 0.65 && (
+        <div
+          role="status"
+          className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4"
+        >
+          <p className="text-sm font-semibold text-amber-950">
+            ⚠️ Identification peu fiable.
+          </p>
+          <p className="mt-1 text-sm leading-5 text-amber-900">
+            Vous pouvez corriger ou ajouter la plante manuellement.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href={correctionHref}
+              className="inline-flex min-h-10 items-center justify-center rounded-xl border border-amber-300 bg-white px-3.5 text-sm font-semibold text-amber-950 hover:bg-amber-100"
+            >
+              ✏️ Corriger
+            </Link>
+            <Link
+              href="/add-plant"
+              className="inline-flex min-h-10 items-center justify-center rounded-xl bg-emerald-700 px-3.5 text-sm font-semibold text-white hover:bg-emerald-800"
+            >
+              🌱 Ajouter manuellement
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 flex justify-end">
+        <Link
+          href={correctionHref}
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+        >
+          ✏️ Corriger l’identification
+        </Link>
       </div>
 
       <div className="mt-5 grid gap-2 sm:grid-cols-2">

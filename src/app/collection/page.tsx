@@ -21,7 +21,8 @@ import {
   removeFromPlantCollection,
   waterPlant,
 } from "@/lib/favorites";
-import { getDaysSinceWatering } from "@/lib/plant-care";
+import { deletePlantImage } from "@/lib/storage";
+import { getDaysSinceWatering } from "@/lib/watering";
 import type {
   PlantCollectionEntry,
   PlantCollectionInput,
@@ -38,12 +39,27 @@ function toCollectionInput(plant: PlantCollectionEntry): PlantCollectionInput {
   return {
     scientific_name: plant.scientific_name,
     common_name: plant.common_name,
+    family_name: plant.family_name,
+    description: plant.description,
     image_url: plant.image_url,
     nickname: plant.nickname,
     purchase_date: plant.purchase_date,
     location: plant.location,
     notes: plant.notes,
+    is_manual: plant.is_manual,
+    source: plant.source,
   };
+}
+
+function sourceBadge(source: PlantCollectionEntry["source"]) {
+  switch (source) {
+    case "plantnet":
+      return "🤖 PlantNet";
+    case "search":
+      return "🔎 Recherche";
+    case "manual":
+      return "✍️ Manuel";
+  }
 }
 
 export default function CollectionPage() {
@@ -120,6 +136,16 @@ export default function CollectionPage() {
     try {
       await removeFromPlantCollection(plant.id);
       setPlants((current) => current.filter((entry) => entry.id !== plant.id));
+      if (plant.image_url) {
+        try {
+          await deletePlantImage(plant.image_url);
+        } catch (imageError: unknown) {
+          console.error("Could not delete plant image:", imageError);
+          setError(
+            "La plante a été supprimée, mais son image n’a pas pu être supprimée.",
+          );
+        }
+      }
     } catch (caughtError: unknown) {
       console.error("Could not delete collection entry:", caughtError);
       setError(
@@ -225,6 +251,11 @@ export default function CollectionPage() {
                       className="h-52 w-full object-cover"
                     />
                   )}
+                  {!plant.image_url && (
+                    <div className="flex h-36 items-center justify-center bg-emerald-50 text-emerald-700">
+                      <Sprout size={36} aria-hidden="true" />
+                    </div>
+                  )}
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -239,10 +270,20 @@ export default function CollectionPage() {
                         <p className="mt-1 text-sm italic text-stone-500">
                           {plant.scientific_name}
                         </p>
+                        {plant.family_name && (
+                          <p className="mt-1 text-xs text-stone-500">
+                            Famille · {plant.family_name}
+                          </p>
+                        )}
                       </div>
-                      <span className="rounded-xl bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800">
-                        {plant.location || "Emplacement à définir"}
-                      </span>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        <span className="rounded-xl bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800">
+                          {sourceBadge(plant.source)}
+                        </span>
+                        <span className="max-w-36 truncate rounded-xl bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700">
+                          {plant.location || "Emplacement à définir"}
+                        </span>
+                      </div>
                     </div>
 
                     <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
@@ -279,6 +320,12 @@ export default function CollectionPage() {
                         </div>
                       </div>
                     </dl>
+
+                    {plant.description && (
+                      <p className="mt-4 text-sm leading-6 text-stone-600">
+                        {plant.description}
+                      </p>
+                    )}
 
                     {plant.notes && (
                       <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-stone-50 p-3.5">

@@ -46,12 +46,16 @@ create table if not exists public.plants_collection (
   user_id uuid not null references auth.users(id) on delete cascade,
   scientific_name text not null,
   common_name text not null,
+  family_name text not null default '',
+  description text,
   image_url text,
   nickname text,
   purchase_date date,
   location text,
   notes text,
   last_watered timestamptz,
+  is_manual boolean not null default false,
+  source text not null default 'plantnet',
   created_at timestamptz not null default now()
 );
 
@@ -93,8 +97,9 @@ create table if not exists public.identification_history (
   scientific_name text not null,
   common_name text not null,
   family_name text not null,
-  score double precision not null check (score >= 0 and score <= 1),
+  score double precision check (score >= 0 and score <= 1),
   image_url text,
+  source text not null default 'plantnet',
   created_at timestamptz not null default now()
 );
 
@@ -120,3 +125,28 @@ drop policy if exists "Users can delete their identification history" on public.
 create policy "Users can delete their identification history"
   on public.identification_history for delete to authenticated
   using ((select auth.uid()) = user_id);
+
+insert into storage.buckets (id, name, public)
+values ('plant-images', 'plant-images', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Users can upload their plant images" on storage.objects;
+create policy "Users can upload their plant images"
+  on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'plant-images'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+
+drop policy if exists "Users can delete their plant images" on storage.objects;
+create policy "Users can delete their plant images"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'plant-images'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+
+drop policy if exists "Plant images are publicly readable" on storage.objects;
+create policy "Plant images are publicly readable"
+  on storage.objects for select to public
+  using (bucket_id = 'plant-images');

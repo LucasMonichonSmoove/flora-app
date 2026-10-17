@@ -1,4 +1,8 @@
-import type { PlantDetails, WikipediaLanguage } from "@/types/plant";
+import type {
+  PlantDetails,
+  PlantSuggestion,
+  WikipediaLanguage,
+} from "@/types/plant";
 
 const REQUEST_TIMEOUT_MS = 5_000;
 
@@ -113,4 +117,35 @@ export async function getPlantDetails(
     console.error("Wikipedia EN lookup failed:", error);
     return null;
   }
+}
+
+export async function searchWikipediaPlant(
+  query: string,
+): Promise<PlantSuggestion | null> {
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) return null;
+
+  let lastError: unknown;
+  for (const language of ["fr", "en"] as const) {
+    try {
+      const details = await getDetailsForLanguage(language, normalizedQuery);
+      if (!details) continue;
+
+      const titleLooksScientific =
+        /^[A-Z][a-z]+(?:\s+[a-z][a-z-]+){1,2}$/.test(details.title);
+      return {
+        commonName: details.title,
+        scientificName: titleLooksScientific ? details.title : normalizedQuery,
+        description: details.summary,
+        ...(details.image ? { image: details.image } : {}),
+        source: "wikipedia",
+      };
+    } catch (error: unknown) {
+      console.error(`Wikipedia ${language.toUpperCase()} plant search failed:`, error);
+      lastError = error;
+    }
+  }
+
+  if (lastError) throw lastError;
+  return null;
 }

@@ -6,8 +6,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import { getCurrentUser } from "@/lib/favorites";
+import {
+  getFavorites,
+  getIdentificationHistory,
+  getPlantCollection,
+} from "@/lib/favorites";
 import { createClient } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
+
+interface AccountStats {
+  plantnetPlants: number;
+  manualPlants: number;
+  searchedPlants: number;
+  favorites: number;
+  identifications: number;
+}
 
 export default function AccountPage() {
   const router = useRouter();
@@ -15,6 +28,7 @@ export default function AccountPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [stats, setStats] = useState<AccountStats | null>(null);
 
   useEffect(() => {
     let isActive = true;
@@ -26,6 +40,28 @@ export default function AccountPage() {
           return;
         }
         if (isActive) setUser(currentUser);
+        const [collection, favorites, history] = await Promise.all([
+          getPlantCollection(),
+          getFavorites(),
+          getIdentificationHistory(),
+        ]);
+        if (isActive) {
+          setStats({
+            plantnetPlants: collection.filter(
+              (plant) => plant.source === "plantnet",
+            ).length,
+            manualPlants: collection.filter(
+              (plant) => plant.source === "manual",
+            ).length,
+            searchedPlants: collection.filter(
+              (plant) => plant.source === "search",
+            ).length,
+            favorites: favorites.length,
+            identifications: history.filter(
+              (entry) => entry.source === "plantnet",
+            ).length,
+          });
+        }
       } catch (caughtError: unknown) {
         console.error("Could not load account:", caughtError);
         if (isActive) {
@@ -92,6 +128,30 @@ export default function AccountPage() {
               <p className="mt-3 text-sm text-stone-600">
                 Connecté avec <strong>{user.email}</strong>
               </p>
+              {stats && (
+                <section
+                  aria-label="Statistiques de votre compte"
+                  className="mt-6 grid gap-3 sm:grid-cols-2"
+                >
+                  {[
+                    ["Plantes identifiées par PlantNet", stats.plantnetPlants],
+                    ["Plantes ajoutées manuellement", stats.manualPlants],
+                    ["Plantes ajoutées via recherche", stats.searchedPlants],
+                    ["Favoris", stats.favorites],
+                    ["Total des identifications", stats.identifications],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="rounded-2xl bg-emerald-50/70 p-4"
+                    >
+                      <p className="text-sm text-stone-600">{label}</p>
+                      <p className="mt-1 text-2xl font-semibold text-emerald-800">
+                        {value}
+                      </p>
+                    </div>
+                  ))}
+                </section>
+              )}
               <button
                 type="button"
                 onClick={() => void handleSignOut()}

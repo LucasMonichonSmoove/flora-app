@@ -21,6 +21,17 @@ function formatDate(value: string) {
   }).format(date);
 }
 
+function historySourceLabel(source: IdentificationHistoryEntry["source"]) {
+  switch (source) {
+    case "plantnet":
+      return "🤖 Identification IA";
+    case "search":
+      return "🔎 Recherche";
+    case "manual":
+      return "✍️ Ajout manuel";
+  }
+}
+
 export default function HistoryPage() {
   const router = useRouter();
   const [entries, setEntries] = useState<IdentificationHistoryEntry[]>([]);
@@ -146,14 +157,21 @@ export default function HistoryPage() {
                   <p className="mt-0.5 truncate text-sm italic text-stone-500">
                     {entry.scientific_name}
                   </p>
-                  <p className="mt-1 text-xs text-stone-500">
-                    Famille · {entry.family_name}
+                  <p className="mt-2 inline-flex rounded-lg bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">
+                    {historySourceLabel(entry.source)}
                   </p>
+                  {entry.family_name && (
+                    <p className="mt-1 text-xs text-stone-500">
+                      Famille · {entry.family_name}
+                    </p>
+                  )}
                 </div>
                 <div className="text-sm sm:text-right">
-                  <p className="font-semibold text-emerald-800">
-                    {Math.round(entry.score * 100)} % de confiance
-                  </p>
+                  {entry.score !== null && (
+                    <p className="font-semibold text-emerald-800">
+                      {Math.round(entry.score * 100)} % de confiance
+                    </p>
+                  )}
                   <time
                     dateTime={entry.created_at}
                     className="mt-1 block text-xs text-stone-500"

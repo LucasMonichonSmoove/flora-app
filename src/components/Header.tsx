@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Heart, History, Leaf, LogIn, LogOut, Sprout, UserRound } from "lucide-react";
+import {
+  Heart,
+  History,
+  Leaf,
+  LogIn,
+  LogOut,
+  Plus,
+  Sprout,
+  UserRound,
+} from "lucide-react";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/favorites";
 import { createClient } from "@/lib/supabase";
@@ -61,6 +70,7 @@ export default function Header() {
     { href: "/", label: "Identification", icon: Leaf },
     { href: "/favorites", label: "Favoris", icon: Heart },
     { href: "/collection", label: "Ma collection", icon: Sprout },
+    { href: "/add-plant", label: "Ajouter une plante", icon: Plus },
     { href: "/history", label: "Historique", icon: History },
     { href: "/account", label: "Mon compte", icon: UserRound },
   ] as const;

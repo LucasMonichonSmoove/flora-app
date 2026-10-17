@@ -45,6 +45,8 @@ frontend ou dans une variable `NEXT_PUBLIC_*`.
    [`supabase/schema.sql`](./supabase/schema.sql). Il crée les tables
    `favorites`, `plants_collection` et `identification_history`, leurs index,
    contraintes et politiques RLS.
+   Pour une base créée avant l’ajout manuel des plantes, exécutez plutôt la
+   migration [`supabase/manual-plants-migration.sql`](./supabase/manual-plants-migration.sql).
 3. Dans **Authentication → Providers**, activez Email. Configurez la
    confirmation par e-mail et l’URL de redirection de votre application.
 4. Redémarrez le serveur après toute modification de `.env.local`.
@@ -76,12 +78,19 @@ L’ajout depuis une fiche d’identification demande une connexion.
 
 ## Collection et historique
 
+- `/add-plant` permet l’ajout manuel, avec recherche dans la collection, les
+  favoris, l’historique, Wikipédia puis une base locale. Une image reste
+  facultative.
 - `/collection` répertorie les plantes possédées. Depuis une identification,
   « Je possède cette plante » ouvre le formulaire d’ajout. Les entrées peuvent
-  être modifiées/supprimées et leur arrosage marqué.
+  être modifiées/supprimées, identifiées par source et leur arrosage marqué.
+- Les images ajoutées sont déposées dans le bucket Supabase Storage public
+  `plant-images`, avec les politiques d’écriture et de suppression limitées au
+  dossier de l’utilisateur.
 - `/history` affiche les identifications effectuées lorsque l’utilisateur est
-  connecté. L’image enregistrée est l’illustration Wikipédia disponible, pas
-  la photo originale envoyée pour l’identification.
+  connecté, ainsi que les plantes ajoutées manuellement ou depuis une recherche.
+  L’image d’identification enregistrée est l’illustration Wikipédia disponible,
+  pas la photo originale envoyée pour l’identification.
 - Les deux fonctionnalités utilisent les tables Supabase créées par le script
   SQL et protégées par RLS.
 

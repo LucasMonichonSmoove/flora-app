@@ -23,6 +23,15 @@ export interface PlantDetails {
   wikipediaUrl: string;
 }
 
+export interface PlantSuggestion {
+  commonName: string;
+  scientificName: string;
+  family?: string;
+  description?: string;
+  image?: string;
+  source?: "collection" | "favorite" | "history" | "wikipedia" | "local";
+}
+
 export type WikipediaLanguage = "fr" | "en";
 
 export interface PlantIdentificationResponse {
@@ -69,23 +78,33 @@ export type PlantCollectionEntry = {
   user_id: string;
   scientific_name: string;
   common_name: string;
+  family_name: string;
+  description: string | null;
   image_url: string | null;
   nickname: string | null;
   purchase_date: string | null;
   location: string | null;
   notes: string | null;
   last_watered: string | null;
+  is_manual: boolean;
+  source: PlantSource;
   created_at: string;
 };
+
+export type PlantSource = "plantnet" | "manual" | "search";
 
 export type PlantCollectionInput = {
   scientific_name: string;
   common_name: string;
+  family_name: string;
+  description: string | null;
   image_url: string | null;
   nickname: string | null;
   purchase_date: string | null;
   location: string | null;
   notes: string | null;
+  is_manual: boolean;
+  source: PlantSource;
 };
 
 export type IdentificationHistoryEntry = {
@@ -94,8 +113,9 @@ export type IdentificationHistoryEntry = {
   scientific_name: string;
   common_name: string;
   family_name: string;
-  score: number;
+  score: number | null;
   image_url: string | null;
+  source: PlantSource;
   created_at: string;
 };
 
@@ -122,8 +142,10 @@ export interface Database {
       };
       identification_history: {
         Row: IdentificationHistoryEntry;
-        Insert: Omit<IdentificationHistoryEntry, "id" | "created_at"> &
-          Partial<Pick<IdentificationHistoryEntry, "id" | "created_at">>;
+        Insert: Omit<IdentificationHistoryEntry, "id" | "created_at" | "score"> &
+          Partial<
+            Pick<IdentificationHistoryEntry, "id" | "created_at" | "score">
+          >;
         Update: Partial<
           Omit<IdentificationHistoryEntry, "id" | "user_id" | "created_at">
         >;

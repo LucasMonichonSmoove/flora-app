@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { addToPlantCollection, updatePlantCollection } from "@/lib/favorites";
+import { deletePlantImage, uploadPlantImage } from "@/lib/storage";
 import type {
   PlantCollectionEntry,
   PlantCollectionInput,
@@ -20,6 +21,12 @@ export default function CollectionPlantForm({
   onClose,
   onSaved,
 }: CollectionPlantFormProps) {
+  const [commonName, setCommonName] = useState(plant.common_name);
+  const [scientificName, setScientificName] = useState(plant.scientific_name);
+  const [family, setFamily] = useState(plant.family_name);
+  const [description, setDescription] = useState(plant.description ?? "");
+  const [imageUrl, setImageUrl] = useState(plant.image_url ?? "");
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [nickname, setNickname] = useState(existing?.nickname ?? "");
   const [purchaseDate, setPurchaseDate] = useState(
     existing?.purchase_date ?? "",
@@ -34,21 +41,44 @@ export default function CollectionPlantForm({
     setIsSaving(true);
     setError(null);
 
-    const input: PlantCollectionInput = {
-      ...plant,
-      nickname: nickname.trim() || null,
-      purchase_date: purchaseDate || null,
-      location: location.trim() || null,
-      notes: notes.trim() || null,
-    };
-
+    let uploadedImage: string | null = null;
     try {
+      const nextImageUrl = imageFile
+        ? (uploadedImage = await uploadPlantImage(imageFile))
+        : imageUrl.trim() || null;
+      const input: PlantCollectionInput = {
+        ...plant,
+        common_name: commonName.trim(),
+        scientific_name: scientificName.trim() || commonName.trim(),
+        family_name: family.trim(),
+        description: description.trim() || null,
+        image_url: nextImageUrl,
+        nickname: nickname.trim() || null,
+        purchase_date: purchaseDate || null,
+        location: location.trim() || null,
+        notes: notes.trim() || null,
+        is_manual: existing?.is_manual ?? plant.is_manual,
+        source: existing?.source ?? plant.source,
+      };
       const savedPlant = existing
         ? await updatePlantCollection(existing.id, input)
         : await addToPlantCollection(input);
+      if (
+        existing?.image_url &&
+        existing.image_url !== nextImageUrl
+      ) {
+        await deletePlantImage(existing.image_url).catch((cleanupError: unknown) => {
+          console.error("Could not remove replaced plant image:", cleanupError);
+        });
+      }
       onSaved(savedPlant);
     } catch (caughtError: unknown) {
       console.error("Could not save plant collection entry:", caughtError);
+      if (uploadedImage) {
+        await deletePlantImage(uploadedImage).catch((cleanupError: unknown) => {
+          console.error("Could not remove an unused plant image:", cleanupError);
+        });
+      }
       setError(
         caughtError instanceof Error
           ? caughtError.message
@@ -87,6 +117,84 @@ export default function CollectionPlantForm({
         </p>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-stone-700">
+                Nom commun *
+              </span>
+              <input
+                required
+                maxLength={120}
+                value={commonName}
+                onChange={(event) => setCommonName(event.target.value)}
+                className="h-11 w-full rounded-xl border border-stone-200 px-3.5 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-stone-700">
+                Nom scientifique
+              </span>
+              <input
+                maxLength={160}
+                value={scientificName}
+                onChange={(event) => setScientificName(event.target.value)}
+                className="h-11 w-full rounded-xl border border-stone-200 px-3.5 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="mb-1.5 block text-sm font-medium text-stone-700">
+                Famille botanique
+              </span>
+              <input
+                maxLength={120}
+                value={family}
+                onChange={(event) => setFamily(event.target.value)}
+                className="h-11 w-full rounded-xl border border-stone-200 px-3.5 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              />
+            </label>
+          </div>
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-stone-700">
+              Image
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                if (file && file.size > 10 * 1024 * 1024) {
+                  setError("L’image ne peut pas dépasser 10 Mo.");
+                  event.target.value = "";
+                  return;
+                }
+                setError(null);
+                setImageFile(file);
+                if (file) setImageUrl("");
+              }}
+              className="block w-full text-sm text-stone-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-emerald-800"
+            />
+            {imageUrl && !imageFile && (
+              <button
+                type="button"
+                onClick={() => setImageUrl("")}
+                className="mt-1 text-xs font-medium text-rose-700 underline"
+              >
+                Supprimer l’image actuelle
+              </button>
+            )}
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-stone-700">
+              Description
+            </span>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              maxLength={4000}
+              rows={3}
+              className="w-full resize-y rounded-xl border border-stone-200 px-3.5 py-2.5 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+            />
+          </label>
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-stone-700">
               Nom personnalisé
